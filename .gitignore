@@ -1,0 +1,41 @@
+﻿# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+
+# Build
+dist/
+build/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# ML
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pth
+
+# Private data
+datasets/raw/
+datasets/private/
