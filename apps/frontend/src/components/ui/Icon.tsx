@@ -42,6 +42,8 @@ export function Icon({ name, size = 20 }: { name: string; size?: number }) {
         <path d="m16 16 5 5" />
       </>
     ),
+    menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+    close: <path d="m6 6 12 12M6 18 18 6" />,
     plus: <path d="M12 5v14M5 12h14" />,
     settings: (
       <>

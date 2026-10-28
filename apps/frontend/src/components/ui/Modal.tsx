@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
 
 export function Modal({
   children,
@@ -12,53 +13,7 @@ export function Modal({
   className?: string;
 }) {
   const panel = useRef<HTMLElement>(null);
-  const close = useRef(onClose);
-  useEffect(() => {
-    close.current = onClose;
-  }, [onClose]);
-  useEffect(() => {
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    panel.current?.focus();
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close.current();
-      }
-      if (event.key !== "Tab") return;
-      const elements = panel.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]',
-      );
-      if (!elements?.length) {
-        event.preventDefault();
-        return;
-      }
-      const first = elements[0];
-      const last = elements[elements.length - 1];
-      if (
-        event.shiftKey &&
-        (document.activeElement === first ||
-          document.activeElement === panel.current)
-      ) {
-        event.preventDefault();
-        last.focus();
-      } else if (
-        !event.shiftKey &&
-        (document.activeElement === last ||
-          document.activeElement === panel.current)
-      ) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKey);
-      if (previousFocus instanceof HTMLElement) previousFocus.focus();
-    };
-  }, []);
+  useDialogFocus(panel, true, onClose);
   return (
     <div className="modal-overlay" onClick={onClose}>
       <section

@@ -1,20 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useDemoSession } from "../../app/useDemoSession";
 import { Icon } from "../../components/ui/Icon";
 import { demoResult, lab } from "../../data/mockData";
 import { isSupportedFile, openFilePicker } from "../../utils/files";
-import type { Notify } from "../../types";
-export function StudentWorkspace({
-  active,
-  toast,
-}: {
-  active: boolean;
-  toast: Notify;
-}) {
-  const [uploaded, setUploaded] = useState<File | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(timer.current), []);
+export function StudentWorkspace() {
+  const {
+    uploaded,
+    setUploaded,
+    submitted,
+    setSubmitted,
+    checking,
+    startCheck,
+    toast,
+  } = useDemoSession();
   const labName = lab.name;
   const upload = (file?: File) => {
     if (!file || checking) return;
@@ -25,15 +22,6 @@ export function StudentWorkspace({
     setUploaded(file);
     setSubmitted(false);
   };
-  const startCheck = () => {
-    if (!uploaded || checking) return;
-    setChecking(true);
-    timer.current = setTimeout(() => {
-      setChecking(false);
-      setSubmitted(true);
-    }, 1600);
-  };
-  if (!active) return null;
   return (
     <div className="student-layout student-layout-stacked">
       <section className="work-panel submission-panel">

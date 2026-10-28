@@ -1,32 +1,32 @@
-import { useState } from "react";
+import { Outlet, useNavigate } from "react-router";
+import { useDemoSession } from "../../app/useDemoSession";
 import { Icon } from "../../components/ui/Icon";
 import { lab, statusClass } from "../../data/mockData";
-import { SubmissionModal } from "./SubmissionModal";
-import type { Notify, Page, Submission, SubmissionStatus } from "../../types";
+import type { SubmissionStatus } from "../../types";
 const filters = ["Все работы", "Проверено ИИ", "На доработку"] as const;
 const PAGE_SIZE = 7;
-export function TeacherDashboard({
-  active,
-  students,
-  onUpdate,
-  setPage,
-  onHelp,
-  toast,
-}: {
-  active: boolean;
-  students: Submission[];
-  onUpdate: (students: Submission[]) => void;
-  setPage: (page: Page) => void;
-  onHelp: () => void;
-  toast: Notify;
-}) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<(typeof filters)[number]>("Все работы");
-  const [group, setGroup] = useState("Все группы");
-  const [selected, setSelected] = useState<Submission | null>(null);
-  const [checkedIds, setCheckedIds] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortAscending, setSortAscending] = useState<boolean | null>(null);
+export function TeacherDashboard() {
+  const {
+    students,
+    query,
+    setQuery,
+    filter,
+    setFilter,
+    group,
+    setGroup,
+    checkedIds,
+    setCheckedIds,
+    currentPage,
+    setCurrentPage,
+    sortAscending,
+    setSortAscending,
+    setHelp,
+  } = useDemoSession();
+  const navigate = useNavigate();
+  const openSubmission = (id: string) =>
+    navigate("/teacher/submissions/" + encodeURIComponent(id), {
+      state: { fromOverview: true },
+    });
   const labName = lab.name;
   const filtered = students
     .filter(
@@ -80,19 +80,6 @@ export function TeacherDashboard({
       "orange",
     ],
   ] as const;
-  const decide = (status: SubmissionStatus, comment: string) => {
-    if (!selected) return;
-    onUpdate(
-      students.map((s) =>
-        s.id === selected.id ? { ...s, status, comment } : s,
-      ),
-    );
-    setSelected(null);
-    toast(
-      "Демо: решение и комментарий сохранены до перезагрузки. Студенту ничего не отправлено.",
-    );
-  };
-  if (!active) return null;
   return (
     <>
       <div className="stats-grid">
@@ -133,7 +120,7 @@ export function TeacherDashboard({
           <button
             aria-label="Настройки проверки"
             className="secondary-button settings-button"
-            onClick={() => setPage("settings")}
+            onClick={() => navigate("/teacher/settings")}
           >
             <Icon name="settings" size={16} />
             Настройки проверки
@@ -264,7 +251,7 @@ export function TeacherDashboard({
                   <td>
                     <button
                       className="student-cell"
-                      onClick={() => setSelected(s)}
+                      onClick={() => openSubmission(s.id)}
                     >
                       <span className={`avatar ${s.color}`}>{s.initials}</span>
                       <span>
@@ -277,7 +264,7 @@ export function TeacherDashboard({
                   <td>
                     <button
                       className="file-count"
-                      onClick={() => setSelected(s)}
+                      onClick={() => openSubmission(s.id)}
                     >
                       <Icon name="file" size={16} />
                       {s.files} {s.files === 1 ? "файл" : "файла"}
@@ -307,7 +294,7 @@ export function TeacherDashboard({
                       className="row-arrow icon-button"
                       title="Открыть работу"
                       aria-label={`Открыть работу: ${s.name}`}
-                      onClick={() => setSelected(s)}
+                      onClick={() => openSubmission(s.id)}
                     >
                       <Icon name="arrow" size={17} />
                     </button>
@@ -372,7 +359,7 @@ export function TeacherDashboard({
               Итоговое решение всегда остаётся за вами.
             </p>
           </div>
-          <button className="text-button" onClick={() => onHelp()}>
+          <button className="text-button" onClick={() => setHelp(true)}>
             Как это работает
             <Icon name="arrow" size={15} />
           </button>
@@ -391,15 +378,7 @@ export function TeacherDashboard({
           </div>
         </div>
       </div>
-      {selected && (
-        <SubmissionModal
-          key={selected.id}
-          submission={selected}
-          onClose={() => setSelected(null)}
-          onDecide={decide}
-          toast={toast}
-        />
-      )}
+      <Outlet />
     </>
   );
 }

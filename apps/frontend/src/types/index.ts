@@ -1,6 +1,5 @@
 export type SubmissionStatus =
   "Проверено ИИ" | "Принято" | "На доработку" | "В обработке";
-export type Page = "dashboard" | "settings" | "student";
 export type Submission = {
   id: string;
   name: string;

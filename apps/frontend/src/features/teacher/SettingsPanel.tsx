@@ -1,22 +1,17 @@
-import { useState } from "react";
+import { useDemoSession } from "../../app/useDemoSession";
 import { Icon } from "../../components/ui/Icon";
 import { settingsTabs, settingsPlaceholders } from "../../data/mockData";
 import { isSupportedFile, openFilePicker } from "../../utils/files";
-import type { Notify, SettingsTab } from "../../types";
-export function SettingsPanel({
-  active,
-  toast,
-}: {
-  active: boolean;
-  toast: Notify;
-}) {
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("Методичка");
-  const [instructions, setInstructions] = useState<
-    Partial<Record<SettingsTab, string>>
-  >({});
-  const [settingsFiles, setSettingsFiles] = useState<
-    Partial<Record<SettingsTab, string>>
-  >({});
+export function SettingsPanel() {
+  const {
+    settingsTab,
+    setSettingsTab,
+    instructions,
+    setInstructions,
+    settingsFiles,
+    setSettingsFiles,
+    toast,
+  } = useDemoSession();
   const chooseFile = (file?: File) => {
     if (!file) return;
     if (!isSupportedFile(file, true)) {
@@ -25,7 +20,6 @@ export function SettingsPanel({
     }
     setSettingsFiles((files) => ({ ...files, [settingsTab]: file.name }));
   };
-  if (!active) return null;
   return (
     <section className="settings-panel work-panel">
       <div className="section-intro">

@@ -1,0 +1,226 @@
+/* Links retain the existing button geometry and states. */
+a.nav-item,
+a.primary-button,
+a.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  transition:
+    background 0.18s,
+    box-shadow 0.18s;
+}
+
+a.primary-button,
+a.secondary-button {
+  justify-content: center;
+  gap: 8px;
+}
+
+.mobile-navigation {
+  display: none;
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .desktop-sidebar {
+    width: 76px;
+    padding: 25px 12px 0;
+    align-items: center;
+    overflow-y: auto;
+  }
+  .main-shell {
+    margin-left: 76px;
+    width: calc(100% - 76px);
+  }
+  .desktop-sidebar .brand {
+    font-size: 0;
+    padding: 0;
+    letter-spacing: 0;
+  }
+  .desktop-sidebar .brand-symbol {
+    margin: 0;
+    width: 38px;
+  }
+  .desktop-sidebar .brand-ai,
+  .desktop-sidebar .nav-label,
+  .desktop-sidebar .nav-count,
+  .desktop-sidebar .tiny-blue-dot,
+  .desktop-sidebar .profile > div {
+    display: none;
+  }
+  .desktop-sidebar nav {
+    margin-top: 45px;
+  }
+  .desktop-sidebar .nav-item {
+    font-size: 0;
+    padding: 14px;
+    gap: 0;
+    min-height: 44px;
+  }
+  .desktop-sidebar .nav-item svg {
+    width: 21px;
+  }
+  .desktop-sidebar .sidebar-bottom {
+    width: 100%;
+  }
+  .desktop-sidebar .sidebar-bottom > .nav-item svg:last-child {
+    display: none;
+  }
+  .desktop-sidebar .profile {
+    flex-direction: column;
+    justify-content: center;
+    padding: 20px 0;
+  }
+  .desktop-sidebar .profile > .icon-button {
+    display: inline-flex;
+    margin-left: 0;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app {
+    display: block;
+  }
+  .desktop-sidebar {
+    display: none;
+  }
+  .main-shell {
+    width: 100%;
+    margin-left: 0;
+  }
+  .topbar {
+    display: none;
+  }
+  .mobile-navigation {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    outline: none;
+  }
+  .mobile-header {
+    height: 62px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+  }
+  .menu-toggle {
+    min-width: 44px;
+    min-height: 44px;
+    color: #738094;
+  }
+  .mobile-brand {
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: #20374c;
+    white-space: nowrap;
+  }
+  .mobile-brand > span {
+    color: var(--blue);
+  }
+  .mobile-context {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .mobile-drawer {
+    position: fixed;
+    inset: 62px 0 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: visibility 0s linear 200ms;
+  }
+  .mobile-drawer.is-open {
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+  .drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: #122d4866;
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+  }
+  .is-open .drawer-backdrop {
+    opacity: 1;
+  }
+  .drawer-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: min(280px, calc(100vw - 24px));
+    height: 100%;
+    padding: 24px 20px 0;
+    align-items: stretch;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 200ms ease-out;
+    box-shadow: 10px 0 35px #122d4820;
+  }
+  .is-open .drawer-sidebar {
+    transform: translateX(0);
+  }
+  .drawer-sidebar > * {
+    flex-shrink: 0;
+  }
+  .drawer-sidebar .brand {
+    font-size: 31px;
+    padding-left: 12px;
+    letter-spacing: -1.8px;
+  }
+  .drawer-sidebar .brand-symbol {
+    margin-right: 10px;
+    width: 37px;
+  }
+  .drawer-sidebar .brand-ai {
+    display: inline;
+  }
+  .drawer-sidebar .nav-label {
+    display: block;
+  }
+  .drawer-sidebar nav {
+    margin-top: 0;
+  }
+  .drawer-sidebar .nav-item {
+    font-size: 12px;
+    padding: 13px 14px;
+    gap: 12px;
+    min-height: 44px;
+  }
+  .drawer-sidebar .nav-count,
+  .drawer-sidebar .tiny-blue-dot {
+    display: inline-block;
+  }
+  .drawer-sidebar .sidebar-bottom {
+    padding-top: 40px;
+  }
+  .drawer-sidebar .sidebar-bottom > .nav-item svg:last-child {
+    display: block;
+  }
+  .drawer-sidebar .profile {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+  .drawer-sidebar .profile > div {
+    display: block;
+  }
+  .drawer-sidebar .profile > .icon-button {
+    display: inline-flex;
+    margin-left: auto;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-drawer,
+  .drawer-sidebar,
+  .drawer-backdrop {
+    transition: none;
+  }
+}
