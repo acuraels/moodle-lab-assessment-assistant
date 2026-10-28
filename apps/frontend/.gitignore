@@ -1,0 +1,7 @@
+design-source.zip
+.design-reference/
+.qa/
+*.tsbuildinfo
+.vite/
+*.local
+*.zip

@@ -1,0 +1,69 @@
+/* Technical fixes only: retain the original desktop composition. */
+.main-shell,
+.lab-heading > div,
+.section-intro > div {
+  min-width: 0;
+}
+
+.upload-zone:focus-visible {
+  outline: 3px solid #a6d5ff;
+  outline-offset: 3px;
+}
+
+.upload-zone strong,
+.detail-files button span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.modal:focus {
+  outline: none;
+}
+
+@media (max-height: 500px) {
+  .sidebar {
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 850px) {
+  .profile {
+    flex-wrap: wrap;
+  }
+
+  .profile > .icon-button {
+    display: inline-flex;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 500px) {
+  .stats-grid > *,
+  .tabs,
+  .table-filters,
+  .search-box {
+    min-width: 0;
+  }
+
+  .stat-trend {
+    flex-shrink: 0;
+  }
+
+  .tabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .ai-result h3,
+  .modal-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .primary-button,
+  .secondary-button {
+    max-width: 100%;
+    white-space: normal;
+  }
+}
