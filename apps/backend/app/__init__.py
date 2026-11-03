@@ -1,0 +1,1 @@
+"""Moodle lab assessment backend."""
