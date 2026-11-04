@@ -1,7 +1,13 @@
 import { useDemoSession } from "../../app/useDemoSession";
 import { Icon } from "../../components/ui/Icon";
-import { demoResult, lab } from "../../data/mockData";
+import { demoResult } from "../../data/mockData";
 import { isSupportedFile, openFilePicker } from "../../utils/files";
+import { useRuntime } from "../../app/runtime";
+import { useStudentAttempt } from "./useStudentAttempt";
+import { AttemptFeedback } from "./AttemptFeedback";
+import { RequestState } from "../../components/ui/RequestState";
+import { formatDate, statusLabels } from "../../api/format";
+import { downloadFile } from "../../api/endpoints";
 export function StudentWorkspace() {
   const {
     uploaded,
@@ -11,65 +17,158 @@ export function StudentWorkspace() {
     checking,
     startCheck,
     toast,
+    lab,
   } = useDemoSession();
+  const { mode, api } = useRuntime();
+  const demo = mode === "demo";
+  const state = useStudentAttempt(toast);
+  const busy = demo ? checking : state.operation.busy;
+  const hasAttempt = demo ? submitted : !!state.selection;
   const labName = lab.name;
   const upload = (file?: File) => {
-    if (!file || checking) return;
+    if (!file || busy) return;
     if (!isSupportedFile(file)) {
       toast("Выберите файл PDF или DOCX");
       return;
     }
+    if (!demo && file.size > 20 * 1024 * 1024) {
+      toast("Файл слишком большой. Допустимо до 20 МБ.");
+      return;
+    }
+    if (!demo) state.newAttempt();
     setUploaded(file);
     setSubmitted(false);
   };
   return (
     <div className="student-layout student-layout-stacked">
       <section className="work-panel submission-panel">
-        <span className="outline-tag">Демонстрационный режим</span>
+        <span className="outline-tag">
+          {demo
+            ? "Демонстрационный режим"
+            : "API · файлы сохраняются на сервере"}
+        </span>
         <h2>{labName}</h2>
         <p>{lab.description}</p>
         <div className="lab-meta">
           <span>
             <Icon name="clock" size={16} />
-            До {lab.deadline}
+            {demo ? `До ${lab.deadline}` : "Срок сдачи недоступен в API"}
           </span>
-          <span>Попытки не ограничены</span>
+          <span>
+            {demo ? "Попытки не ограничены" : "Лимит попыток проверяет сервер"}
+          </span>
         </div>
-        <h3>{submitted ? "Пример проверки готов" : "Загрузите вашу работу"}</h3>
+        {!demo && (
+          <div className="attempt-history">
+            <h3>История попыток</h3>
+            <RequestState
+              loading={state.history.loading}
+              error={state.history.error}
+              retry={state.history.retry}
+            />
+            {state.history.data && (
+              <>
+                {state.history.data.items.length ? (
+                  <select
+                    aria-label="Попытка"
+                    value={state.selection || ""}
+                    disabled={busy}
+                    onChange={(event) => {
+                      state.select(event.target.value);
+                      setUploaded(null);
+                    }}
+                  >
+                    <option value="" disabled>
+                      Выберите попытку
+                    </option>
+                    {state.selection &&
+                      !state.history.data.items.some(
+                        (item) => item.id === state.selection,
+                      ) && (
+                        <option value={state.selection}>Текущая попытка</option>
+                      )}
+                    {state.history.data.items.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        № {item.number} · {formatDate(item.submitted_at)} ·{" "}
+                        {statusLabels[item.status]}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="muted">Сохранённых попыток пока нет.</p>
+                )}
+                <div className="integration-actions">
+                  <button
+                    className="secondary-button"
+                    disabled={busy || state.page <= 1}
+                    onClick={() => state.changePage(state.page - 1)}
+                  >
+                    Назад
+                  </button>
+                  <span>
+                    {state.page} /{" "}
+                    {Math.max(1, state.history.data.pagination.total_pages)}
+                  </span>
+                  <button
+                    className="secondary-button"
+                    disabled={
+                      busy ||
+                      state.page >= state.history.data.pagination.total_pages
+                    }
+                    onClick={() => state.changePage(state.page + 1)}
+                  >
+                    Далее
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <h3>
+          {demo && submitted
+            ? "Пример проверки готов"
+            : hasAttempt
+              ? "Сохранённая работа"
+              : "Загрузите вашу работу"}
+        </h3>
         <label
           className="upload-zone"
-          tabIndex={checking ? -1 : 0}
+          tabIndex={busy ? -1 : 0}
           onKeyDown={openFilePicker}
-          aria-disabled={checking}
+          aria-disabled={busy}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            if (!checking) upload(e.dataTransfer.files[0]);
+            if (!busy) upload(e.dataTransfer.files[0]);
           }}
         >
-          <Icon name={submitted ? "file" : "upload"} size={32} />
+          <Icon name={hasAttempt ? "file" : "upload"} size={32} />
           <strong>
-            {uploaded
-              ? uploaded.name
-              : "Перетащите файл или нажмите для загрузки"}
+            {!demo && state.attempt?.file
+              ? state.attempt.file.name
+              : uploaded
+                ? uploaded.name
+                : "Перетащите файл или нажмите для загрузки"}
           </strong>
           <span>Отчёт в формате PDF или DOCX</span>
           <input
             type="file"
             accept=".pdf,.docx"
-            disabled={checking}
+            disabled={busy}
             onChange={(e) => {
               upload(e.target.files?.[0]);
               e.target.value = "";
             }}
           />
         </label>
-        {submitted ? (
+        {hasAttempt ? (
           <button
             className="primary-button"
+            disabled={busy}
             onClick={() => {
               setUploaded(null);
               setSubmitted(false);
+              if (!demo) state.newAttempt();
             }}
           >
             <Icon name="plus" size={18} />
@@ -78,29 +177,60 @@ export function StudentWorkspace() {
         ) : (
           <button
             className="primary-button"
-            disabled={!uploaded || checking}
-            onClick={startCheck}
+            disabled={!uploaded || busy}
+            onClick={() => {
+              if (demo) startCheck();
+              else if (uploaded) state.upload(uploaded);
+            }}
           >
             <Icon name="spark" size={18} />
-            {checking ? "Готовим пример…" : "Запустить демопроверку"}
+            {demo
+              ? checking
+                ? "Готовим пример…"
+                : "Запустить демопроверку"
+              : busy
+                ? "Отправляем…"
+                : "Загрузить и проверить"}
           </button>
         )}
         <p className="muted small">
-          {submitted
-            ? "Это тестовый результат, не анализ файла. Можно начать новую попытку."
-            : "Файл не анализируется и не отправляется на сервер. Результат — из тестовых данных."}
+          {!demo
+            ? `${hasAttempt ? "Работа сохранена на сервере." : "Файл будет сохранён на сервере."} ML пока не подключён; успешная автоматическая оценка недоступна.`
+            : submitted
+              ? "Это тестовый результат, не анализ файла. Можно начать новую попытку."
+              : "Файл не анализируется и не отправляется на сервер. Результат — из тестовых данных."}
         </p>
+        {!demo && state.attempt?.file && (
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => {
+              const file = state.attempt!.file!;
+              void state.operation.run(
+                (signal) => downloadFile(api!, file.id, file.name, signal),
+                () => toast("Файл получен. Скачивание начато."),
+              );
+            }}
+          >
+            Скачать сохранённый файл
+          </button>
+        )}
+        {!demo && <RequestState error={state.operation.error} />}
       </section>
       <section className="work-panel feedback-panel" aria-live="polite">
         <span className="feedback-icon">
           <Icon name="spark" size={26} />
         </span>
         <h2>
-          {submitted
-            ? "Результаты самопроверки (демо)"
-            : "Как выглядит результат проверки"}
+          {!demo
+            ? "Результат попытки"
+            : submitted
+              ? "Результаты самопроверки (демо)"
+              : "Как выглядит результат проверки"}
         </h2>
-        {submitted ? (
+        {!demo ? (
+          <AttemptFeedback state={state} />
+        ) : submitted ? (
           <>
             <div className="student-score-card">
               <span>Демонстрационная оценка</span>

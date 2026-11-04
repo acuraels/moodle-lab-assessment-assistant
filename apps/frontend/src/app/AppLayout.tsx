@@ -6,13 +6,15 @@ import { Icon } from "../components/ui/Icon";
 import { HelpModal } from "../components/ui/HelpModal";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useDemoSession } from "./useDemoSession";
-import { lab } from "../data/mockData";
+import { useRuntime } from "./runtime";
+import { RequestState } from "../components/ui/RequestState";
 
 export function AppLayout() {
   const { pathname } = useLocation();
   const path = pathname.replace(/\/+$/, "") || "/";
   const mobile = useMediaQuery("(max-width: 767px)");
-  const { help, setHelp, notice, dismiss } = useDemoSession();
+  const { help, setHelp, notice, dismiss, lab, labResource } = useDemoSession();
+  const { mode, leave } = useRuntime();
   const settings = path === "/teacher/settings";
   const student = path === "/student/check";
   const known =
@@ -52,19 +54,33 @@ export function AppLayout() {
                 </h1>
                 <p>
                   {settings
-                    ? "Настройте материалы и критерии в демонстрационном режиме."
+                    ? mode === "demo"
+                      ? "Настройте материалы и критерии в демонстрационном режиме."
+                      : "Материалы и критерии проверки лабораторной."
                     : student
-                      ? "Попробуйте проверку и изучите пример обратной связи."
+                      ? mode === "demo"
+                        ? "Попробуйте проверку и изучите пример обратной связи."
+                        : "Загрузите работу и следите за состоянием попытки."
                       : "Меньше рутины. Больше времени на главное — обучение."}
                 </p>
               </div>
             </div>
           )}
+          {mode === "api" && (
+            <RequestState error={labResource.error} retry={labResource.retry} />
+          )}
           <Outlet />
           <footer className="page-footer">
             <span>лаб.ai — пространство для осознанного обучения</span>
             <span>
-              <span className="connected-dot" /> Демонстрационный прототип
+              <span className="connected-dot" />{" "}
+              {mode === "demo"
+                ? "Демонстрационный прототип"
+                : "API · данные сервера"}
+              {" · "}
+              <button className="mode-switch" onClick={leave}>
+                {mode === "demo" ? "Подключить API" : "Завершить сессию"}
+              </button>
             </span>
           </footer>
         </main>

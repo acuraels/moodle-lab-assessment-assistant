@@ -1,0 +1,60 @@
+/* Technical states reuse the existing design tokens and components. */
+.session-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.session-panel {
+  padding: 32px;
+  width: min(100%, 520px);
+}
+.session-panel h1 {
+  margin: 20px 0 12px;
+  font-size: 24px;
+}
+.session-panel form,
+.session-panel label {
+  display: grid;
+  gap: 12px;
+}
+.session-panel input {
+  width: 100%;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  padding: 12px;
+}
+.session-panel > .secondary-button {
+  margin-top: 20px;
+}
+.integration-note {
+  margin: 16px 0;
+}
+.integration-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+.attempt-history {
+  margin-bottom: 24px;
+}
+.attempt-history select {
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: white;
+}
+.mode-switch {
+  color: inherit;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.empty-state p {
+  margin-bottom: 12px;
+}

@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../ui/Icon";
 import { MobileDrawer } from "./MobileDrawer";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
+import { useDemoSession } from "../../app/useDemoSession";
 
 export function MobileHeader() {
+  const { lab } = useDemoSession();
   const [open, setOpen] = useState(false);
   const dialog = useRef<HTMLDivElement>(null);
   useDialogFocus(dialog, open, () => setOpen(false));
@@ -34,7 +36,7 @@ export function MobileHeader() {
         <span className="mobile-brand">
           лаб<span>.ai</span>
         </span>
-        <span className="mobile-context">Лабораторная № 3</span>
+        <span className="mobile-context">{lab.name}</span>
       </header>
       <MobileDrawer open={open} onClose={() => setOpen(false)} />
     </div>

@@ -88,6 +88,7 @@ export const statusClass: Record<SubmissionStatus, string> = {
   Принято: "accepted",
   "На доработку": "revision",
   "В обработке": "processing",
+  "Ошибка проверки": "revision",
 };
 
 export const assessmentCriteria: AssessmentCriterion[] = [

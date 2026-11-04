@@ -1,6 +1,8 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { Icon } from "../ui/Icon";
 import { useDemoSession } from "../../app/useDemoSession";
+import { useRuntime } from "../../app/runtime";
+import { initials } from "../../api/format";
 
 export function Sidebar({
   variant = "desktop",
@@ -11,8 +13,13 @@ export function Sidebar({
 }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { students, setHelp } = useDemoSession();
-  const student = pathname.startsWith("/student");
+  const { students, setHelp, teacher } = useDemoSession();
+  const { mode, user, leave } = useRuntime();
+  const demo = mode === "demo";
+  const student = demo
+    ? pathname.startsWith("/student")
+    : user?.role === "student";
+  const name = demo ? "Елена Кузнецова" : user?.name || "Пользователь";
   const drawer = variant === "drawer";
   const navClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? "nav-item active" : "nav-item";
@@ -32,7 +39,7 @@ export function Sidebar({
         лаб<span className="brand-ai">.ai</span>
       </Link>
       <div className="nav-label single-lab-nav-label">ЛАБОРАТОРНАЯ РАБОТА</div>
-      {(!student || drawer) && (
+      {(!student || (drawer && demo)) && (
         <nav aria-label="Основная навигация">
           <NavLink
             to="/teacher"
@@ -43,7 +50,12 @@ export function Sidebar({
             onClick={onNavigate}
           >
             <Icon name="grid" />
-            Обзор работ<span className="nav-count">{students.length}</span>
+            Обзор работ
+            <span className="nav-count">
+              {demo
+                ? students.length
+                : (teacher.data?.stats.total_submitted ?? "—")}
+            </span>
           </NavLink>
           <NavLink
             to="/teacher/settings"
@@ -58,7 +70,7 @@ export function Sidebar({
           </NavLink>
         </nav>
       )}
-      {drawer && (
+      {drawer && (demo || student) && (
         <NavLink to="/student/check" className={navClass} onClick={onNavigate}>
           <Icon name="book" />
           Режим студента
@@ -80,26 +92,29 @@ export function Sidebar({
         </button>
         <div
           className="profile"
-          title={
-            student
-              ? "Елена Кузнецова — режим студента"
-              : "Елена Кузнецова — преподаватель"
-          }
+          title={`${name} — ${student ? "Студент" : "Преподаватель"}`}
         >
-          <span className="avatar profile-avatar" aria-label="Елена Кузнецова">
-            ЕК
+          <span className="avatar profile-avatar" aria-label={name}>
+            {initials(name)}
           </span>
           <div>
-            <strong>Елена Кузнецова</strong>
-            <small>{student ? "Режим студента" : "Преподаватель"}</small>
+            <strong>{name}</strong>
+            <small>
+              {student
+                ? demo
+                  ? "Режим студента"
+                  : "Студент"
+                : "Преподаватель"}
+            </small>
           </div>
           <button
             className="icon-button"
-            title="Переключить роль"
-            aria-label="Переключить роль"
+            title={demo ? "Переключить роль" : "Сменить сессию"}
+            aria-label={demo ? "Переключить роль" : "Сменить сессию"}
             onClick={() => {
               onNavigate?.();
-              navigate(student ? "/teacher" : "/student/check");
+              if (demo) navigate(student ? "/teacher" : "/student/check");
+              else leave();
             }}
           >
             <Icon name="down" size={17} />

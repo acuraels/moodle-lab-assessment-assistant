@@ -1,13 +1,18 @@
 export type SubmissionStatus =
-  "Проверено ИИ" | "Принято" | "На доработку" | "В обработке";
+  | "Проверено ИИ"
+  | "Принято"
+  | "На доработку"
+  | "В обработке"
+  | "Ошибка проверки";
 export type Submission = {
   id: string;
   name: string;
   initials: string;
   group: string;
   date: string;
-  files: number;
+  files: number | null;
   score: number | null;
+  maxScore?: number | null;
   status: SubmissionStatus;
   color: string;
   comment?: string;
