@@ -39,8 +39,11 @@ def attempt_item(attempt: Attempt) -> dict:
         "submitted_at": attempt.submitted_at,
         "status": attempt.status,
         "ai_score": attempt.ai_score,
+        "ai_max_score": attempt.ai_max_score,
         "ai_conclusion": attempt.ai_conclusion,
         "teacher_comment": attempt.teacher_comment,
+        "teacher_submitted": attempt.teacher_submitted,
+        "teacher_submitted_at": attempt.teacher_submitted_at,
         "file": (
             {
                 "id": attempt.files[0].id,

@@ -207,7 +207,12 @@ def _attempt(
         ai_max_score=10.0 if score is not None else None,
         ai_conclusion=conclusion,
         ai_criteria=[
-            {"name": "Корректность решения", "score": score / 2 if score is not None else None}
+            {
+                "name": "Корректность решения",
+                "score": score / 2 if score is not None else 0,
+                "max_score": 5,
+                "comment": "Демонстрационный результат.",
+            }
         ]
         if score is not None
         else None,

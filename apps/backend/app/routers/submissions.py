@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.errors import api_error
@@ -43,7 +44,7 @@ async def list_submissions(
         if group_exists is None:
             raise api_error(400, "INVALID_GROUP", "Academic group is not available")
         filters.append(Attempt.academic_group == Academic_group)
-    query = select(Attempt).where(*filters)
+    query = select(Attempt).options(selectinload(Attempt.files)).where(*filters)
     total = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = (
         await db.execute(
@@ -63,6 +64,8 @@ async def list_submissions(
                 },
                 "submitted_at": row.submitted_at,
                 "ai_score": row.ai_score,
+                "ai_max_score": row.ai_max_score,
+                "file_count": len(row.files),
                 "status": row.status,
             }
             for row in rows

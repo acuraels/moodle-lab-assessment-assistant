@@ -419,8 +419,11 @@ Authorization: Bearer <jwt>
       "file": {"id": "file-2", "name": "lab1.docx", "size": 84512},
       "status": "ai_checked",
       "ai_score": 8.5,
+      "ai_max_score": 10,
       "ai_conclusion": "Работа соответствует большинству критериев...",
-      "teacher_comment": null
+      "teacher_comment": null,
+      "teacher_submitted": false,
+      "teacher_submitted_at": null
     }
   ],
   "pagination": {
@@ -431,6 +434,10 @@ Authorization: Bearer <jwt>
   }
 }
 ```
+
+В `criteria` результата ИИ каждый элемент имеет фиксированную форму:
+`name` — название критерия, `score` — полученный балл, `max_score` —
+максимальный балл, `comment` — комментарий по критерию.
 
 ### 7.2. Загрузка новой попытки
 
@@ -590,6 +597,8 @@ Authorization: Bearer <jwt>
       },
       "submitted_at": "2026-11-02T10:15:00Z",
       "ai_score": 8.5,
+      "ai_max_score": 10,
+      "file_count": 1,
       "status": "ai_checked"
     }
   ],
