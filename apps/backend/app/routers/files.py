@@ -1,3 +1,8 @@
+import re
+import unicodedata
+from pathlib import PurePath
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +13,17 @@ from app.middleware.session import UserContext, get_current_user
 from app.models import Attempt, FilePurpose, StoredFile
 
 router = APIRouter(prefix="/api", tags=["files"])
+
+
+def _content_disposition(filename: str) -> str:
+    normalized = unicodedata.normalize("NFKD", filename)
+    fallback = normalized.encode("ascii", "ignore").decode("ascii")
+    fallback = re.sub(r"[^A-Za-z0-9._-]+", "_", fallback).strip("._")
+    if not fallback:
+        suffix = PurePath(filename).suffix
+        fallback = f"download{suffix}" if suffix.isascii() else "download"
+    encoded_name = quote(filename, safe="")
+    return f'attachment; filename="{fallback}"; filename*=UTF-8\'\'{encoded_name}'
 
 
 @router.get("/files/{file_id}/download")
@@ -30,5 +46,5 @@ async def download_file(
     return Response(
         content=stored.data,
         media_type=stored.content_type,
-        headers={"Content-Disposition": f'attachment; filename="{stored.filename}"'},
+        headers={"Content-Disposition": _content_disposition(stored.filename)},
     )
