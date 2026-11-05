@@ -265,7 +265,60 @@ Authorization: Bearer <jwt>
 | `system_instructions` | текст или файл | PDF, DOCX, TXT |
 | `reference_work` | текст или файл | PDF, DOCX, TXT |
 
-### 6.1. Загрузка файла материала
+### 6.1. Чтение настроек ИИ
+
+```http
+GET /api/labs/{lab_id}/ai-settings
+Authorization: Bearer <jwt>
+```
+
+Доступно только преподавателю. Endpoint возвращает полный текущий набор
+материалов перед сохранением. Это необходимо, потому что `PUT` заменяет весь
+набор настроек, а не изменяет только переданные поля.
+
+Если настройки ещё не сохранены, возвращается `200 OK`:
+
+```json
+{
+  "lab_id": "lab-123",
+  "version": 0,
+  "settings_status": "not_configured",
+  "updated_at": null,
+  "methodical_guide": null,
+  "grading_criteria": null,
+  "system_instructions": null,
+  "reference_work": null
+}
+```
+
+Пример настроек с текстом и файлом:
+
+```json
+{
+  "lab_id": "lab-123",
+  "version": 3,
+  "settings_status": "configured",
+  "updated_at": "2026-11-03T10:20:00Z",
+  "methodical_guide": {
+    "text": "Методические указания...",
+    "file": null
+  },
+  "grading_criteria": {
+    "text": null,
+    "file": {
+      "file_id": "file-123",
+      "name": "Критерии.pdf",
+      "size": 24576,
+      "content_type": "application/pdf",
+      "download_url": "/api/files/file-123/download"
+    }
+  },
+  "system_instructions": null,
+  "reference_work": null
+}
+```
+
+### 6.2. Загрузка файла материала
 
 ```http
 POST /api/labs/{lab_id}/ai-settings/files
@@ -294,7 +347,7 @@ file=<binary>
 
 Файл загружается во временное хранилище и становится частью настроек только после сохранения настроек.
 
-### 6.2. Сохранение настроек
+### 6.3. Сохранение настроек
 
 ```http
 PUT /api/labs/{lab_id}/ai-settings
@@ -330,7 +383,7 @@ Content-Type: application/json
 
 Ошибки: `400 SETTINGS_EMPTY`, `400 INVALID_MATERIAL`, `404 LAB_NOT_FOUND`, `413 FILE_TOO_LARGE`, `415 UNSUPPORTED_FILE_TYPE`.
 
-### 6.3. Удаление отдельного материала
+### 6.4. Удаление отдельного материала
 
 ```http
 DELETE /api/labs/{lab_id}/ai-settings/{field}
@@ -742,6 +795,7 @@ POST /api/instructor/attempts/{attempt_id}/publish-grade
 | `POST /lti/launch` | LTI | LTI |
 | `GET /api/me` | да | да |
 | `GET /api/labs/{id}` | нет | да |
+| `GET /api/labs/{id}/ai-settings` | нет | да |
 | `PUT /api/labs/{id}/ai-settings` | нет | да |
 | `GET /api/labs/{id}/attempts` | свои | нет |
 | `POST /api/labs/{id}/attempts` | да | нет |

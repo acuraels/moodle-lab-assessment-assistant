@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -30,6 +31,96 @@ def material_value(material):
     if material.text is None and material.file_id is None:
         raise api_error(400, "INVALID_MATERIAL", "Material must contain text or file_id")
     return material
+
+
+async def _file_metadata(
+    db: AsyncSession,
+    file_id: str | None,
+    lab_id: str,
+) -> dict | None:
+    if file_id is None:
+        return None
+    stored = await db.scalar(
+        select(StoredFile).where(
+            StoredFile.id == file_id,
+            StoredFile.lab_id == lab_id,
+            StoredFile.purpose == FilePurpose.AI_SETTING,
+        )
+    )
+    if stored is None:
+        return None
+    return {
+        "file_id": stored.id,
+        "name": stored.filename,
+        "size": stored.size,
+        "content_type": stored.content_type,
+        "download_url": f"/api/files/{stored.id}/download",
+    }
+
+
+async def _material_response(
+    db: AsyncSession,
+    lab_id: str,
+    text: str | None,
+    file_id: str | None,
+) -> dict | None:
+    if text is None and file_id is None:
+        return None
+    return {
+        "text": text,
+        "file": await _file_metadata(db, file_id, lab_id),
+    }
+
+
+@router.get("/labs/{lab_id}/ai-settings")
+async def read_ai_settings(
+    lab_id: str,
+    user: UserContext = Depends(require_instructor),
+    db: AsyncSession = Depends(get_db),
+):
+    lab = await get_lab(db, lab_id, user)
+    settings_row = await db.get(AISettings, lab.id)
+    if settings_row is None:
+        return {
+            "lab_id": lab.id,
+            "version": 0,
+            "settings_status": "not_configured",
+            "updated_at": None,
+            "methodical_guide": None,
+            "grading_criteria": None,
+            "system_instructions": None,
+            "reference_work": None,
+        }
+    return {
+        "lab_id": lab.id,
+        "version": settings_row.version,
+        "settings_status": "configured",
+        "updated_at": settings_row.updated_at,
+        "methodical_guide": await _material_response(
+            db,
+            lab.id,
+            settings_row.methodical_guide_text,
+            settings_row.methodical_guide_file_id,
+        ),
+        "grading_criteria": await _material_response(
+            db,
+            lab.id,
+            settings_row.grading_criteria_text,
+            settings_row.grading_criteria_file_id,
+        ),
+        "system_instructions": await _material_response(
+            db,
+            lab.id,
+            settings_row.system_instructions_text,
+            settings_row.system_instructions_file_id,
+        ),
+        "reference_work": await _material_response(
+            db,
+            lab.id,
+            settings_row.reference_work_text,
+            settings_row.reference_work_file_id,
+        ),
+    }
 
 
 @router.post("/labs/{lab_id}/ai-settings/files", status_code=201)
