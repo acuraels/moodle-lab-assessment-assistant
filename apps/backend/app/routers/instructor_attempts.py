@@ -73,6 +73,8 @@ async def review_attempt(
     attempt = await get_attempt(db, attempt_id, user)
     if not attempt.teacher_submitted:
         raise api_error(409, "ATTEMPT_NOT_SUBMITTED", "Attempt was not submitted to teacher")
+    if attempt.status == AttemptStatus.ACCEPTED:
+        raise api_error(409, "INVALID_ATTEMPT_STATUS", "Accepted attempt cannot be reviewed again")
     if payload.decision == "return_for_revision" and (
         payload.comment is None or not payload.comment.strip()
     ):
