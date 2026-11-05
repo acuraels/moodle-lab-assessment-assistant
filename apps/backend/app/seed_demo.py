@@ -1,7 +1,9 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
+from os import getenv
 
 from sqlalchemy import delete, select
+from uuid import NAMESPACE_URL, uuid5
 
 from app.database import SessionLocal
 from app.middleware.session import create_token
@@ -15,10 +17,10 @@ from app.models import (
     StoredFile,
 )
 
-LAB_ID = "6efab888-c3a6-5b09-9f32-9630c48485fa"
-COURSE_ID = "2"
-RESOURCE_LINK_ID = "demo-lab-1"
-INSTRUCTOR_ID = "3"
+COURSE_ID = getenv("DEMO_COURSE_ID", "2") ## http://localhost/course/view.php?id=1
+RESOURCE_LINK_ID = getenv("DEMO_RESOURCE_LINK_ID", "2") ## найти resource_link_id в /lti/launch при запуске лабы
+INSTRUCTOR_ID = getenv("DEMO_INSTRUCTOR_ID", "3") ## http://localhost/user/profile.php?id=1
+STUDENT_1_ID = getenv("DEMO_STUDENT_1_ID", "4") ## http://localhost/user/profile.php?id=2
 
 
 async def seed() -> None:
@@ -32,10 +34,15 @@ async def seed() -> None:
     }
 
     async with SessionLocal() as db:
-        lab = await db.get(Lab, LAB_ID)
+        lab = await db.scalar(
+            select(Lab).where(
+                Lab.course_id == COURSE_ID,
+                Lab.resource_link_id == RESOURCE_LINK_ID,
+            )
+        )
         if lab is None:
             lab = Lab(
-                id=LAB_ID,
+                id=str(uuid5(NAMESPACE_URL, f"{COURSE_ID}:{RESOURCE_LINK_ID}")),
                 course_id=COURSE_ID,
                 resource_link_id=RESOURCE_LINK_ID,
                 title="Демонстрационная лабораторная №1",
@@ -51,9 +58,10 @@ async def seed() -> None:
             lab.description = "Тестовые данные для проверки интерфейса преподавателя и студента."
             lab.updated_at = now
 
-        settings = await db.get(AISettings, LAB_ID)
+        lab_id = lab.id
+        settings = await db.get(AISettings, lab_id)
         if settings is None:
-            settings = AISettings(lab_id=LAB_ID, version=1, updated_at=now)
+            settings = AISettings(lab_id=lab_id, version=1, updated_at=now)
             db.add(settings)
         settings.methodical_guide_text = "Методические указания для демонстрационной лабораторной."
         settings.grading_criteria_text = "Корректность решения — 5 баллов; оформление — 5 баллов."
@@ -71,8 +79,9 @@ async def seed() -> None:
 
         attempts = [
             _attempt(
+                lab_id,
                 "demo-attempt-processing",
-                "4",
+                STUDENT_1_ID,
                 "Иванов Иван Иванович",
                 "ИВТ-301",
                 1,
@@ -80,8 +89,9 @@ async def seed() -> None:
                 now - timedelta(hours=1),
             ),
             _attempt(
+                lab_id,
                 "demo-attempt-ai-checked",
-                "4",
+                STUDENT_1_ID,
                 "Иванов Иван Иванович",
                 "ИВТ-301",
                 2,
@@ -92,9 +102,10 @@ async def seed() -> None:
                 conclusion="Работа соответствует большинству критериев.",
             ),
             _attempt(
+                lab_id,
                 "demo-attempt-accepted",
-                "5",
-                "Петров Пётр Петрович",
+                STUDENT_1_ID,
+                "Иванов Иван Иванович",
                 "ИВТ-301",
                 1,
                 AttemptStatus.ACCEPTED,
@@ -106,9 +117,10 @@ async def seed() -> None:
                 reviewed=True,
             ),
             _attempt(
+                lab_id,
                 "demo-attempt-revision",
-                "5",
-                "Петров Пётр Петрович",
+                STUDENT_1_ID,
+                "Иванов Иван Иванович",
                 "ИВТ-301",
                 2,
                 AttemptStatus.RETURNED_FOR_REVISION,
@@ -120,8 +132,9 @@ async def seed() -> None:
                 reviewed=True,
             ),
             _attempt(
+                lab_id,
                 "demo-attempt-failed",
-                "4",
+                STUDENT_1_ID,
                 "Иванов Иван Иванович",
                 "ИВТ-301",
                 3,
@@ -135,7 +148,7 @@ async def seed() -> None:
             db.add(
                 StoredFile(
                     id=f"{attempt.id}-file",
-                    lab_id=LAB_ID,
+                    lab_id=lab_id,
                     attempt_id=attempt.id,
                     purpose=FilePurpose.ATTEMPT,
                     filename=f"{attempt.student_id}-lab.pdf",
@@ -167,14 +180,13 @@ async def seed() -> None:
 
     print("Demo data seeded.")
     print("Instructor token:")
-    print(_token(INSTRUCTOR_ID, "Test Instructor", "instructor@example.com", "instructor"))
-    print("Student 1 token:")
-    print(_token("4", "Иванов Иван Иванович", "student1@example.com", "student"))
-    print("Student 2 token:")
-    print(_token("5", "Петров Пётр Петрович", "student2@example.com", "student"))
+    print(_token(lab_id, INSTRUCTOR_ID, "Test Instructor", "instructor@example.com", "instructor"))
+    print("Student token:")
+    print(_token(lab_id, STUDENT_1_ID, "Иванов Иван Иванович", "student1@example.com", "student"))
 
 
 def _attempt(
+    lab_id: str,
     attempt_id: str,
     student_id: str,
     student_name: str,
@@ -192,7 +204,7 @@ def _attempt(
     reviewed_at = submitted_at + timedelta(hours=2) if reviewed else None
     return Attempt(
         id=attempt_id,
-        lab_id=LAB_ID,
+        lab_id=lab_id,
         student_id=student_id,
         student_name=student_name,
         academic_group=group,
@@ -226,7 +238,7 @@ def _attempt(
     )
 
 
-def _token(user_id: str, name: str, email: str, role: str) -> str:
+def _token(lab_id: str, user_id: str, name: str, email: str, role: str) -> str:
     return create_token(
         {
             "sub": user_id,
@@ -234,7 +246,7 @@ def _token(user_id: str, name: str, email: str, role: str) -> str:
             "name": name,
             "role": role,
             "course_id": COURSE_ID,
-            "lab_id": LAB_ID,
+            "lab_id": lab_id,
             "lab_title": "Демонстрационная лабораторная №1",
             "Academic_group": "ИВТ-301" if role == "student" else None,
         }
