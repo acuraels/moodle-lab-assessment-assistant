@@ -66,10 +66,15 @@ Moodle отправляет подписанный OAuth 1.0 запрос LTI 1.
 
 ```http
 HTTP/1.1 302 Found
-Location: https://<frontend-host>/?token=<jwt>&lab_id=<resource_link_id>
+Location: https://<frontend-host>/?token=<jwt>&lab_id=<lab-id>
 ```
 
-`lab_id` — внутренний идентификатор записи, связанной с `resource_link_id`. Backend создаёт такую запись автоматически при первом запуске модуля; преподаватель не создаёт лабораторию через API. JWT содержит:
+`lab_id` — фактический внутренний идентификатор записи лаборатории, связанной
+с `resource_link_id`. Для новой лаборатории backend вычисляет стабильный UUID,
+а для уже существующей использует её сохранённый `id`. Поэтому повторный LTI
+launch всегда передаёт тот же идентификатор, который используется в базе.
+Backend создаёт запись автоматически при первом запуске модуля; преподаватель
+не создаёт лабораторию через API. JWT содержит:
 
 ```json
 {
@@ -78,7 +83,7 @@ Location: https://<frontend-host>/?token=<jwt>&lab_id=<resource_link_id>
   "name": "Иванов Иван Иванович",
   "role": "student",
   "course_id": "moodle-course-id",
-  "lab_id": "moodle-resource-link-id",
+  "lab_id": "lab-123",
   "lab_title": "Описание лабораторной",
   "Academic_group": "ИВТ-301",
   "exp": 1793613600

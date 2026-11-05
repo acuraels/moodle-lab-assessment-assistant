@@ -81,6 +81,7 @@ async def lti_launch(request: Request):
             lab.deadline = deadline
             lab.attempts_limit = attempts_limit
             lab.updated_at = now
+        lab_id = lab.id
         await db.commit()
 
     token = create_token(
