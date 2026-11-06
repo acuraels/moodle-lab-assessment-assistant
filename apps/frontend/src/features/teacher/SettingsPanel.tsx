@@ -2,15 +2,19 @@ import { useDemoSession } from "../../app/useDemoSession";
 import { Icon } from "../../components/ui/Icon";
 import { settingsTabs, settingsPlaceholders } from "../../data/mockData";
 import { isSupportedFile, openFilePicker } from "../../utils/files";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useResource } from "../../hooks/useResource";
+import { ApiError } from "../../api/client";
 import { useRuntime } from "../../app/runtime";
 import { useOperation } from "../../hooks/useOperation";
 import {
   deleteMaterial,
+  downloadFile,
+  getMaterials,
   saveMaterials,
   uploadMaterial,
 } from "../../api/endpoints";
-import type { MaterialField, Materials } from "../../api/types";
+import type { AISettings, MaterialField, Materials } from "../../api/types";
 import { RequestState } from "../../components/ui/RequestState";
 import { Modal } from "../../components/ui/Modal";
 import type { SettingsTab } from "../../types";
@@ -22,10 +26,49 @@ const fields: Record<SettingsTab, MaterialField> = {
 };
 export function SettingsPanel() {
   const { mode, api, labId } = useRuntime();
+  const load = useCallback(
+    (signal: AbortSignal) => getMaterials(api!, labId, signal),
+    [api, labId],
+  );
+  const resource = useResource(load, mode === "api", labId);
+  if (mode === "api" && !resource.data)
+    return (
+      <section className="settings-panel work-panel">
+        <RequestState
+          loading={resource.loading}
+          error={resource.error}
+          retry={resource.retry}
+        />
+      </section>
+    );
+  return <SettingsEditor key={`${mode}:${labId}`} initial={resource.data} />;
+}
+
+function settingsDraft(initial?: AISettings) {
+  const text: Partial<Record<SettingsTab, string>> = {};
+  const files: Partial<Record<SettingsTab, string>> = {};
+  const ids: Partial<Record<SettingsTab, string>> = {};
+  for (const tab of settingsTabs) {
+    const material = initial?.[fields[tab]];
+    text[tab] = material?.text ?? "";
+    files[tab] = material?.file?.name;
+    ids[tab] = material?.file?.file_id;
+  }
+  return { text, files, ids };
+}
+
+function SettingsEditor({ initial }: { initial?: AISettings }) {
+  const { mode, api, labId } = useRuntime();
   const demo = mode === "demo";
   const operation = useOperation();
   const [confirm, setConfirm] = useState<"save" | "delete" | null>(null);
-  const [savedVersion, setSavedVersion] = useState<number | null>(null);
+  const [savedVersion, setSavedVersion] = useState(initial?.version ?? 0);
+  const [apiInstructions, setApiInstructions] = useState(
+    () => settingsDraft(initial).text,
+  );
+  const [apiFiles, setApiFiles] = useState(() => settingsDraft(initial).files);
+  const [apiIds, setApiIds] = useState(() => settingsDraft(initial).ids);
+  const session = useDemoSession();
   const {
     settingsTab,
     setSettingsTab,
@@ -36,10 +79,25 @@ export function SettingsPanel() {
     toast,
     materialIds,
     setMaterialIds,
-  } = useDemoSession();
-  const complete = settingsTabs.every(
+  } = demo
+    ? session
+    : {
+        ...session,
+        instructions: apiInstructions,
+        setInstructions: setApiInstructions,
+        settingsFiles: apiFiles,
+        setSettingsFiles: setApiFiles,
+        materialIds: apiIds,
+        setMaterialIds: setApiIds,
+      };
+  const complete = settingsTabs.some(
     (tab) => materialIds[tab] || instructions[tab]?.trim(),
   );
+  const checkVersion = async (signal: AbortSignal) => {
+    const latest = await getMaterials(api!, labId, signal);
+    if (latest.version !== savedVersion)
+      throw new ApiError(409, "SETTINGS_CHANGED");
+  };
   const clearDraftFile = () => {
     setMaterialIds((values) => ({ ...values, [settingsTab]: undefined }));
     setSettingsFiles((values) => ({ ...values, [settingsTab]: undefined }));
@@ -74,8 +132,13 @@ export function SettingsPanel() {
   const apply = () => {
     if (confirm === "delete")
       void operation.run(
-        (signal) => deleteMaterial(api!, labId, fields[settingsTab], signal),
-        () => {
+        async (signal) => {
+          await checkVersion(signal);
+          await deleteMaterial(api!, labId, fields[settingsTab], signal);
+          return getMaterials(api!, labId, signal);
+        },
+        (response) => {
+          setSavedVersion(response.version);
           clearDraftFile();
           setInstructions((values) => ({ ...values, [settingsTab]: "" }));
           setConfirm(null);
@@ -90,11 +153,16 @@ export function SettingsPanel() {
           fields[tab],
           materialIds[tab]
             ? { file_id: materialIds[tab] }
-            : { text: instructions[tab]!.trim() },
+            : instructions[tab]?.trim()
+              ? { text: instructions[tab]! }
+              : null,
         ]),
       ) as Materials;
       void operation.run(
-        (signal) => saveMaterials(api!, labId, materials, signal),
+        async (signal) => {
+          await checkVersion(signal);
+          return saveMaterials(api!, labId, materials, signal);
+        },
         (response) => {
           setSavedVersion(response.version);
           setConfirm(null);
@@ -116,7 +184,7 @@ export function SettingsPanel() {
           <p>
             {demo
               ? "Заполните хотя бы одно поле, чтобы сохранить настройки демо."
-              : "Чтение сохранённых материалов пока недоступно в API."}
+              : "Сохранённые материалы загружены. Можно изменить любую вкладку."}
           </p>
         </div>
       </div>
@@ -140,7 +208,7 @@ export function SettingsPanel() {
       <p className="muted">
         {demo
           ? "Добавьте текст или документ. В демо они не влияют на тестовый результат."
-          : "Черновик нового набора: текст или файл для каждого материала. Текущие настройки сервера здесь не показаны."}
+          : "Добавьте текст или замените документ. Изменения применятся после сохранения."}
       </p>
       <label
         className="upload-zone"
@@ -172,6 +240,24 @@ export function SettingsPanel() {
           <button
             className="text-button"
             disabled={operation.busy}
+            onClick={() =>
+              void operation.run(
+                (signal) =>
+                  downloadFile(
+                    api!,
+                    materialIds[settingsTab]!,
+                    settingsFiles[settingsTab]!,
+                    signal,
+                  ),
+                () => toast("Файл получен. Скачивание начато."),
+              )
+            }
+          >
+            Скачать материал
+          </button>
+          <button
+            className="text-button"
+            disabled={operation.busy}
             onClick={clearDraftFile}
           >
             Убрать файл из черновика
@@ -196,14 +282,15 @@ export function SettingsPanel() {
       {!demo && (
         <div className="ai-result integration-note">
           <p>
-            Без чтения настроек нельзя безопасно сохранить одну вкладку. Для
-            замены заполните все четыре материала и подтвердите полный набор.
-            Остальные серверные материалы не изменяются при загрузке файла.
+            Сохраняется весь набор: изменённые вкладки вместе с остальными
+            загруженными материалами. Пустая вкладка удаляет соответствующий
+            материал при сохранении. Хотя бы один материал должен остаться.
           </p>
           {savedVersion !== null && (
             <p>
-              В этой сессии сервер подтвердил сохранение версии {savedVersion}.
-              Отображается ваш черновик, не повторное чтение сервера.
+              Версия на момент загрузки или последнего сохранения:{" "}
+              {savedVersion}. Несохранённые изменения находятся только в этой
+              форме.
             </p>
           )}
           <button
@@ -258,12 +345,12 @@ export function SettingsPanel() {
           </button>
           <h2 id="settings-confirm">
             {confirm === "save"
-              ? "Заменить все материалы?"
+              ? "Сохранить настройки?"
               : `Удалить «${settingsTab}»?`}
           </h2>
           <p>
             {confirm === "save"
-              ? "Все четыре материала на сервере будут заменены этим набором. Текущие значения сервер не позволяет прочитать."
+              ? "Будет сохранён показанный набор. Неизменённые вкладки сохранят загруженные значения."
               : "Будет удалён только этот материал из серверных настроек. Отменить удаление через API нельзя."}
           </p>
           {confirm === "save" && (
@@ -295,7 +382,7 @@ export function SettingsPanel() {
               {operation.busy
                 ? "Сохраняем…"
                 : confirm === "save"
-                  ? "Заменить полный набор"
+                  ? "Подтвердить сохранение"
                   : "Удалить материал"}
             </button>
           </div>

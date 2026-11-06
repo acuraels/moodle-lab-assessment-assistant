@@ -22,6 +22,7 @@ export function SubmissionModal({
   busy,
   error,
   retry,
+  onCommentChange,
 }: {
   submission: Submission;
   onClose: () => void;
@@ -33,6 +34,7 @@ export function SubmissionModal({
   busy?: boolean;
   error?: string;
   retry?: () => void;
+  onCommentChange?: (comment: string) => void;
 }) {
   const [comment, setComment] = useState(submission.comment ?? "");
   const { lab } = useDemoSession();
@@ -137,40 +139,47 @@ export function SubmissionModal({
         Комментарий преподавателя
         <textarea
           value={comment}
-          onChange={(e) => setComment(e.target.value)}
+          onChange={(e) => {
+            setComment(e.target.value);
+            onCommentChange?.(e.target.value);
+          }}
           rows={3}
           maxLength={10000}
-          disabled={busy}
+          disabled={busy || (!demo && detail?.status === "accepted")}
           placeholder="Добавьте обратную связь студенту…"
         />
       </label>
       <RequestState error={error} />
-      <div className="modal-actions">
-        <button
-          className="secondary-button"
-          disabled={
-            busy ||
-            (!demo &&
-              (!detail?.actions.can_return_for_revision || !comment.trim()))
-          }
-          title={
-            !demo && !comment.trim()
-              ? "Для возврата нужен комментарий"
-              : undefined
-          }
-          onClick={() => onDecide("На доработку", comment)}
-        >
-          На доработку
-        </button>
-        <button
-          className="primary-button"
-          disabled={busy || (!demo && !detail?.actions.can_accept)}
-          onClick={() => onDecide("Принято", comment)}
-        >
-          <Icon name="check" size={17} />
-          Принять работу
-        </button>
-      </div>
+      {!demo && detail?.status === "accepted" ? (
+        <p className="muted">Работа принята. Решение окончательное.</p>
+      ) : (
+        <div className="modal-actions">
+          <button
+            className="secondary-button"
+            disabled={
+              busy ||
+              (!demo &&
+                (!detail?.actions.can_return_for_revision || !comment.trim()))
+            }
+            title={
+              !demo && !comment.trim()
+                ? "Для возврата нужен комментарий"
+                : undefined
+            }
+            onClick={() => onDecide("На доработку", comment)}
+          >
+            На доработку
+          </button>
+          <button
+            className="primary-button"
+            disabled={busy || (!demo && !detail?.actions.can_accept)}
+            onClick={() => onDecide("Принято", comment)}
+          >
+            <Icon name="check" size={17} />
+            Принять работу
+          </button>
+        </div>
+      )}
     </Modal>
   );
 }

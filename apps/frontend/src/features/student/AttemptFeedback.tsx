@@ -1,6 +1,6 @@
 import { Icon } from "../../components/ui/Icon";
 import { RequestState } from "../../components/ui/RequestState";
-import { statusLabels } from "../../api/format";
+import { formatDate, statusLabels } from "../../api/format";
 import type { useStudentAttempt } from "./useStudentAttempt";
 export function AttemptFeedback({
   state,
@@ -8,6 +8,8 @@ export function AttemptFeedback({
   state: ReturnType<typeof useStudentAttempt>;
 }) {
   const { attempt, result } = state;
+  const score = result?.score ?? attempt?.ai_score;
+  const maxScore = result?.max_score ?? attempt?.ai_max_score;
   const canSubmit =
     attempt && ["ai_checked", "returned_for_revision"].includes(attempt.status);
   return (
@@ -50,21 +52,21 @@ export function AttemptFeedback({
               <div className="student-score-card">
                 <span>Оценка из сохранённого результата</span>
                 <div className="student-score-value">
-                  <strong>{result?.score ?? "—"}</strong>
-                  {result?.max_score != null && (
-                    <span>/ {result.max_score} баллов</span>
-                  )}
+                  <strong>{score ?? "—"}</strong>
+                  {maxScore != null && <span>/ {maxScore} баллов</span>}
                 </div>
-                {result?.score != null &&
-                  result.max_score != null &&
-                  result.max_score > 0 && (
-                    <progress
-                      value={result.score}
-                      max={result.max_score}
-                      aria-label={`Оценка ${result.score} из ${result.max_score}`}
-                    />
-                  )}
-                <p>{result?.conclusion || "Заключение отсутствует."}</p>
+                {score != null && maxScore != null && maxScore > 0 && (
+                  <progress
+                    value={score}
+                    max={maxScore}
+                    aria-label={`Оценка ${score} из ${maxScore}`}
+                  />
+                )}
+                <p>
+                  {result?.conclusion ||
+                    attempt.ai_conclusion ||
+                    "Заключение отсутствует."}
+                </p>
               </div>
               {!result?.criteria.length && (
                 <p className="muted small">
@@ -104,19 +106,27 @@ export function AttemptFeedback({
           <button
             className="secondary-button"
             disabled={
-              !canSubmit || state.operation.busy || state.sent || !!state.error
+              !canSubmit ||
+              state.operation.busy ||
+              (state.sent && attempt.status !== "returned_for_revision") ||
+              !!state.error
             }
             onClick={state.submit}
           >
-            {state.sent
-              ? "Отправлено преподавателю"
-              : "Отправить преподавателю"}
+            {attempt.status === "returned_for_revision"
+              ? "Отправить повторно"
+              : state.sent
+                ? "Отправлено преподавателю"
+                : "Отправить преподавателю"}
             <Icon name="arrow" size={16} />
           </button>
-          {!state.sent && canSubmit && (
+          {state.sent && (
             <p className="muted small">
-              Сервер не сообщает, отправлялась ли эта попытка ранее. Повторное
-              нажатие не создаёт новую попытку.
+              Отправлено преподавателю
+              {attempt.teacher_submitted_at
+                ? `: ${formatDate(attempt.teacher_submitted_at)}`
+                : ""}
+              .
             </p>
           )}
           {!state.loading && (

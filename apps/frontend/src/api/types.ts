@@ -45,13 +45,16 @@ export interface Attempt {
   ai_score: number | null;
   ai_conclusion: string | null;
   teacher_comment: string | null;
+  ai_max_score: number | null;
+  teacher_submitted: boolean;
+  teacher_submitted_at: string | null;
   file: FileInfo | null;
 }
 export interface Criterion {
-  name?: string;
-  score?: number | null;
-  max_score?: number | null;
-  comment?: string;
+  name: string;
+  score: number;
+  max_score: number;
+  comment: string;
 }
 export interface AIResult {
   attempt_id: string;
@@ -73,6 +76,8 @@ export interface SubmissionRow {
   student: Student;
   submitted_at: string;
   ai_score: number | null;
+  ai_max_score: number | null;
+  file_count: number;
   status: AttemptStatus;
 }
 export interface SubmissionDetail {
@@ -112,3 +117,14 @@ export interface MaterialFile {
   size: number;
   content_type: string;
 }
+
+export type SavedMaterial = {
+  text: string | null;
+  file: Omit<MaterialFile, "field"> | null;
+};
+export type AISettings = Record<MaterialField, SavedMaterial | null> & {
+  lab_id: string;
+  version: number;
+  settings_status: "configured" | "not_configured";
+  updated_at: string | null;
+};

@@ -1,6 +1,7 @@
 import { ApiClient } from "./client";
 import type {
   AIResult,
+  AISettings,
   Attempt,
   Decision,
   Lab,
@@ -163,3 +164,9 @@ export async function downloadFile(
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+export const getMaterials = (
+  api: ApiClient,
+  labId: string,
+  signal?: AbortSignal,
+) => api.request<AISettings>(`/labs/${id(labId)}/ai-settings`, { signal });

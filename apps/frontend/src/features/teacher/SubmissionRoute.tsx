@@ -3,12 +3,12 @@ import { useDemoSession } from "../../app/useDemoSession";
 import { SubmissionModal } from "./SubmissionModal";
 import { Modal } from "../../components/ui/Modal";
 import type { SubmissionStatus } from "../../types";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRuntime } from "../../app/runtime";
 import { useResource } from "../../hooks/useResource";
 import { useOperation } from "../../hooks/useOperation";
 import { getResult, getSubmission, review } from "../../api/endpoints";
-import { errorMessage, isAbort } from "../../api/client";
+import { ApiError, errorMessage, isAbort } from "../../api/client";
 import { detailToSubmission } from "../../api/format";
 import { RequestState } from "../../components/ui/RequestState";
 
@@ -17,6 +17,9 @@ export function SubmissionRoute() {
   const { students, setStudents, toast } = useDemoSession();
   const { mode, api, refresh } = useRuntime();
   const operation = useOperation();
+  const [draft, setDraft] = useState<{ id: string; comment: string } | null>(
+    null,
+  );
   const load = useCallback(
     async (signal: AbortSignal) => {
       const detail = await getSubmission(api!, id!, signal);
@@ -57,19 +60,35 @@ export function SubmissionRoute() {
   const decide = (status: SubmissionStatus, comment: string) => {
     if (!submission) return;
     if (mode === "api") {
+      const detail = resource.data?.detail;
+      if (
+        !detail ||
+        detail.status === "accepted" ||
+        (status === "Принято"
+          ? !detail.actions.can_accept
+          : !detail.actions.can_return_for_revision)
+      )
+        return;
       if (status === "На доработку" && !comment.trim()) {
         toast("Добавьте комментарий для возврата на доработку.");
         return;
       }
       void operation.run(
-        (signal) =>
-          review(
-            api!,
-            submission.id,
-            status === "Принято" ? "accept" : "return_for_revision",
-            comment,
-            signal,
-          ),
+        async (signal) => {
+          try {
+            return await review(
+              api!,
+              submission.id,
+              status === "Принято" ? "accept" : "return_for_revision",
+              comment,
+              signal,
+            );
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 409)
+              resource.retry();
+            throw error;
+          }
+        },
         () => {
           refresh();
           toast("Решение и комментарий сохранены на сервере.");
@@ -114,7 +133,12 @@ export function SubmissionRoute() {
   return (
     <SubmissionModal
       key={submission.id}
-      submission={submission}
+      submission={
+        draft?.id === submission.id
+          ? { ...submission, comment: draft.comment }
+          : submission
+      }
+      onCommentChange={(comment) => setDraft({ id: submission.id, comment })}
       onClose={close}
       onDecide={decide}
       toast={toast}

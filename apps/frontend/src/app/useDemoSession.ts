@@ -20,7 +20,7 @@ import { useLocation } from "react-router";
 import { useToast } from "../hooks/useToast";
 import type { SettingsTab, SubmissionStatus } from "../types";
 
-// One session survives route unmounts. Nothing is persisted or sent to a server.
+// Shared screen state survives route unmounts within the current session.
 export function useSessionState() {
   const { mode, api, user, labId, labTitle, revision } = useRuntime();
   const { pathname } = useLocation();
@@ -65,7 +65,7 @@ export function useSessionState() {
   );
   const labResource = useResource(
     loadLab,
-    mode === "api" && user?.role === "instructor",
+    mode === "api",
     `${labId}:${revision}`,
   );
   const loadTeacher = useCallback(

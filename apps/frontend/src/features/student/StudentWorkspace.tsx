@@ -18,6 +18,7 @@ export function StudentWorkspace() {
     startCheck,
     toast,
     lab,
+    labResource,
   } = useDemoSession();
   const { mode, api } = useRuntime();
   const demo = mode === "demo";
@@ -47,15 +48,34 @@ export function StudentWorkspace() {
             ? "Демонстрационный режим"
             : "API · файлы сохраняются на сервере"}
         </span>
+        {!demo && (
+          <RequestState
+            loading={labResource.loading}
+            error={labResource.error}
+            retry={labResource.retry}
+          />
+        )}
         <h2>{labName}</h2>
         <p>{lab.description}</p>
         <div className="lab-meta">
           <span>
             <Icon name="clock" size={16} />
-            {demo ? `До ${lab.deadline}` : "Срок сдачи недоступен в API"}
+            {demo
+              ? `До ${lab.deadline}`
+              : labResource.data?.deadline
+                ? `До ${lab.deadline}`
+                : labResource.data
+                  ? "Срок не задан"
+                  : "Срок загружается…"}
           </span>
           <span>
-            {demo ? "Попытки не ограничены" : "Лимит попыток проверяет сервер"}
+            {demo
+              ? "Попытки не ограничены"
+              : !labResource.data
+                ? "Лимит загружается…"
+                : labResource.data.attempts_limit === null
+                  ? "Попытки не ограничены"
+                  : `Лимит попыток: ${labResource.data.attempts_limit}`}
           </span>
         </div>
         {!demo && (

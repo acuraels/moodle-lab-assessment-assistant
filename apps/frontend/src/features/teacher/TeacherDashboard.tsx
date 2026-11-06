@@ -296,7 +296,7 @@ export function TeacherDashboard() {
                   title={
                     demo
                       ? "Демонстрационные оценки из тестовых данных"
-                      : "Балл сервера; максимум доступен в карточке работы"
+                      : "Оценка и максимальный балл из результата сервера"
                   }
                 >
                   ОЦЕНКА ИИ <Icon name="help" size={13} />
@@ -352,10 +352,16 @@ export function TeacherDashboard() {
                         className={`score ${demo && s.score < 70 ? "low" : ""}`}
                       >
                         <strong>{s.score}</strong>
-                        {demo && <span>/ 100</span>}
-                        {demo && (
+                        {(demo || s.maxScore != null) && (
+                          <span>/ {demo ? 100 : s.maxScore}</span>
+                        )}
+                        {(demo || (s.maxScore != null && s.maxScore > 0)) && (
                           <i>
-                            <b style={{ width: `${s.score}%` }} />
+                            <b
+                              style={{
+                                width: `${Math.min(100, Math.max(0, (s.score / (demo ? 100 : s.maxScore!)) * 100))}%`,
+                              }}
+                            />
                           </i>
                         )}
                       </div>

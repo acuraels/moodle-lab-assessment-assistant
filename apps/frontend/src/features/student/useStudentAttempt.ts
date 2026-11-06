@@ -21,7 +21,6 @@ export function useStudentAttempt(notify: (message: string) => void) {
   );
   const [historyRevision, setHistoryRevision] = useState(0);
   const [pollRevision, setPollRevision] = useState(0);
-  const [sent, setSent] = useState<string[]>([]);
   const [state, setState] = useState<{
     key: string;
     attempt?: Attempt;
@@ -53,10 +52,15 @@ export function useStudentAttempt(notify: (message: string) => void) {
     const deadline = Date.now() + 120000;
     async function poll() {
       try {
-        const [attempt, result] = await Promise.all([
-          getAttempt(api!, selection!, controller.signal),
-          getResult(api!, selection!, controller.signal),
-        ]);
+        const attempt = await getAttempt(api!, selection!, controller.signal);
+        let result: AIResult;
+        try {
+          result = await getResult(api!, selection!, controller.signal);
+        } catch (error) {
+          if (!controller.signal.aborted)
+            setState({ key, attempt, error: errorMessage(error) });
+          return;
+        }
         if (controller.signal.aborted) return;
         const current = { ...attempt, status: result.status };
         if (result.status === "processing" && Date.now() >= deadline) {
@@ -113,9 +117,12 @@ export function useStudentAttempt(notify: (message: string) => void) {
     )
       return;
     void operation.run(
-      (signal) => submitAttempt(api, selection, signal),
-      () => {
-        setSent((ids) => [...ids, selection]);
+      async (signal) => {
+        await submitAttempt(api, selection, signal);
+        return getAttempt(api, selection, signal);
+      },
+      (attempt) => {
+        setState((previous) => ({ ...previous, attempt }));
         notify("Сервер подтвердил отправку преподавателю.");
         setHistoryRevision((value) => value + 1);
       },
@@ -139,6 +146,6 @@ export function useStudentAttempt(notify: (message: string) => void) {
     error: current?.error,
     loading: enabled && !!selection && !current?.attempt && !current?.error,
     retry: () => setPollRevision((value) => value + 1),
-    sent: !!selection && sent.includes(selection),
+    sent: current?.attempt?.teacher_submitted === true,
   };
 }

@@ -28,16 +28,20 @@ export function rowToSubmission(row: SubmissionRow): Submission {
     initials: initials(row.student.name),
     group: row.student.Academic_group || "Группа не указана",
     date: formatDate(row.submitted_at),
-    files: null,
+    files: row.file_count,
     score: row.ai_score,
-    maxScore: null,
+    maxScore: row.ai_max_score,
     status: statusLabels[row.status] || "Ошибка проверки",
     color: "blue",
   };
 }
 export function detailToSubmission(row: SubmissionDetail): Submission {
   return {
-    ...rowToSubmission({ ...row, attempt_id: row.id }),
+    ...rowToSubmission({
+      ...row,
+      attempt_id: row.id,
+      file_count: row.files.length,
+    }),
     files: row.files.length,
     maxScore: row.ai_max_score,
     comment: row.teacher_comment || "",
