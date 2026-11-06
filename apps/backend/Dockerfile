@@ -10,6 +10,7 @@ COPY pyproject.toml ./
 COPY app ./app
 COPY alembic.ini ./
 COPY alembic ./alembic
+COPY healthcheck.py ./healthcheck.py
 
 RUN pip install --upgrade pip \
     && pip install .

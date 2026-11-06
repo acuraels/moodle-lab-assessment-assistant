@@ -22,11 +22,112 @@
 
 | Директория | Назначение |
 |------------|------------|
-| `frontend/` | Пользовательский интерфейс |
-| `backend/` | Серверная часть приложения |
-| `ml/` | Компоненты искусственного интеллекта |
+| `apps/frontend/` | React, production-сборка и Nginx |
+| `apps/backend/` | FastAPI, SQLAlchemy и Alembic |
+| `apps/ml/` | Будущий компонент искусственного интеллекта |
 | `docs/` | Документация проекта |
 | `datasets/` | Тестовые данные и критерии оценки |
+
+## Единый запуск через Docker
+
+Нужны Docker Desktop в режиме Linux containers и Docker Compose v2.
+Все команды выполняются из корня репозитория. На хосте Node/Python не нужны.
+
+1. Скопируйте `.env.example` в `.env` и заполните обязательные значения.
+   Если `.env` уже подготовлен, сохраните его. Для существующей БД используйте
+   фактические пользователя, пароль и имя. Изменение `POSTGRES_PASSWORD` в файле
+   не меняет пароль внутри существующего volume.
+2. `POSTGRES_VOLUME_NAME=backend_postgres_data` указывает на прежние данные.
+   Volume объявлен внешним: при его отсутствии запуск остановится вместо
+   создания пустой БД. Только для новой установки без прежних данных один раз
+   создайте выбранный volume через `docker volume create <имя>`.
+3. В `DATABASE_URL` укажите `postgresql+asyncpg://<user>:<encoded-password>@postgres:5432/<db>`.
+   При наличии специальных символов URL-кодируйте пароль и имя пользователя.
+   На новой установке сгенерируйте сильные JWT/LTI-секреты; при переносе сохраните
+   действующие. Секреты и JWT не помещайте в Git или Vite.
+4. Проверьте конфигурацию без вывода секретов и запустите:
+
+```sh
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+```
+
+Приложение: **http://localhost:8080/**. Проверка API: **http://localhost:8080/health**.
+Порт привязан к loopback. Backend 8000 и PostgreSQL 5432 наружу не опубликованы.
+Внешний redirect задаётся `FRONTEND_URL=http://localhost:8080/`.
+При смене порта согласованно обновите `FRONTEND_PORT` и `FRONTEND_URL`.
+
+Compose ждёт PostgreSQL, выполняет Alembic, затем запускает FastAPI и Nginx.
+Backend healthcheck проверяет HTTP и `SELECT 1`. Ошибка миграции не позволяет
+запустить API. Статус `unhealthy` сам по себе не перезапускает контейнер:
+проверяйте `docker compose ps` и логи backend.
+
+`VITE_ENABLE_TEST_LOGIN=true` оставляет временную форму входа по настоящему JWT.
+Это публичный build-флаг: сервер продолжает проверять токен и роль. JWT не входит
+в образ. После подключения Moodle выключите флаг и пересоберите frontend.
+Без JWT доступен Demo Mode.
+
+```sh
+docker compose logs --tail 100 backend
+docker compose restart
+docker compose down
+```
+
+Обычный `down` сохраняет внешний volume. Не удаляйте volume и не запускайте seed
+для проверки инфраструктуры. Файлы отчётов хранятся в PostgreSQL; отдельного
+uploads-volume нет. Резервную копию храните также вне Docker.
+
+### Backup и переход со старого Compose
+
+Перед переходом сохраните `pg_dump -Fc`, проверьте `pg_restore --list` и полное
+извлечение SQL без подключения к БД. Бинарный dump в Windows не передавайте через
+текстовый PowerShell pipeline: запишите архив в контейнере и заберите через
+`docker cp` либо используйте бинарный subprocess.
+
+Пример backup уже запущенного корневого стека (подставьте фактические пользователя
+и БД, для каждой копии выбирайте новое имя файла):
+
+```powershell
+New-Item -ItemType Directory -Force backups | Out-Null
+docker compose exec -T postgres pg_dump -U postgres -d lab_assessment -Fc -f /tmp/lab-assessment.dump
+docker compose exec -T postgres pg_restore --list /tmp/lab-assessment.dump
+docker compose exec -T postgres pg_restore --file=/dev/null /tmp/lab-assessment.dump
+docker compose cp postgres:/tmp/lab-assessment.dump ./backups/lab-assessment.dump
+```
+
+Проверка архива не заменяет периодическую пробу восстановления в отдельной БД.
+`backups/` игнорируется Git; не удаляйте её при очистке временных проверок.
+
+Порядок первого перехода:
+
+1. Подтвердите mount `backend_postgres_data` и сделайте проверенный backup.
+2. Перенесите параметры в root `.env`; соберите образы до остановки старого стека.
+3. Освободите 8080. Остановите старые сервисы без удаления volumes.
+4. Запустите корневой стек; сверьте mount, Alembic revision, записи и файлы.
+
+Не запускайте два PostgreSQL на одном volume. Сохраняйте PostgreSQL 17;
+обновление major-версии — отдельная задача. Откат после изменения схемы БД
+требует отдельного плана восстановления.
+
+### Прокси и дальнейшее расширение
+
+Nginx раздаёт SPA и проксирует `/api`, `/lti/launch`, `/health` без удаления префиксов.
+Прямые React URL работают через fallback; отсутствующие assets дают 404.
+Публичные `/docs` и `/openapi.json` не проксируются. Для ручного Vite установите
+`API_PROXY_TARGET=http://localhost:8080`: порт 8000 хоста закрыт.
+
+Внешний Host с портом, схема и POST body сохраняются для LTI OAuth. Access logs
+исключают query string и Referer, API не кэшируется. Uvicorn доверяет proxy headers
+в закрытых Docker-сетях: нельзя публиковать backend напрямую при этой настройке.
+Будущий HTTPS-терминатор потребует согласовать доверенные proxy и внешнюю схему.
+Для Moodle iframe нельзя глобально включать X-Frame-Options DENY/SAMEORIGIN;
+HTTPS и CSP frame-ancestors согласуются при фактическом подключении Moodle.
+
+Сеть `app` соединяет Nginx и backend, внутренняя `database` — backend и PostgreSQL.
+ML позже добавляется сервисом с внутренней сетью и без публикации порта.
+Moodle сейчас не требуется и не входит в Compose. Инфраструктура не подключает
+LLM или Outcomes: новые попытки по-прежнему получают `ai_failed`.
 
 ## Команда
 

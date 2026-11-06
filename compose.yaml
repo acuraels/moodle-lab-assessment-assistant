@@ -1,0 +1,89 @@
+name: moodle-lab-assessment
+
+services:
+  frontend:
+    build:
+      context: ./apps/frontend
+      args:
+        VITE_ENABLE_TEST_LOGIN: ${VITE_ENABLE_TEST_LOGIN:-false}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    build:
+      context: ./apps/backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the root .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in the root .env}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-60}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080/}
+      LTI_CONSUMER_KEY: ${LTI_CONSUMER_KEY:?Set LTI_CONSUMER_KEY in the root .env}
+      LTI_CONSUMER_SECRET: ${LTI_CONSUMER_SECRET:?Set LTI_CONSUMER_SECRET in the root .env}
+      MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-20971520}
+    command:
+      - sh
+      - -c
+      - >-
+        alembic upgrade head && exec uvicorn app.main:app
+        --host 0.0.0.0 --port 8000 --proxy-headers
+        --forwarded-allow-ips='*' --no-access-log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app
+      - database
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 15s
+      timeout: 8s
+      retries: 5
+      start_period: 40s
+    logging: *logging
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lab_assessment}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the root .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the root .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *logging
+
+networks:
+  app:
+  database:
+    internal: true
+
+volumes:
+  postgres_data:
+    external: true
+    name: ${POSTGRES_VOLUME_NAME:-backend_postgres_data}

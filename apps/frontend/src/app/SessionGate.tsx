@@ -37,7 +37,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
         ) : (
           <>
             {runtime.error && <p role="alert">{runtime.error}</p>}
-            {import.meta.env.DEV ? (
+            {import.meta.env.DEV || import.meta.env.VITE_ENABLE_TEST_LOGIN === "true" ? (
               <form
                 onSubmit={(event) => {
                   event.preventDefault();

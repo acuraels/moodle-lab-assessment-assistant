@@ -12,6 +12,7 @@ venv/
 dist/
 build/
 coverage/
+backups/
 
 # Python
 __pycache__/
