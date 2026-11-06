@@ -53,8 +53,8 @@ export interface Attempt {
 export interface Criterion {
   name: string;
   score: number;
-  max_score: number;
-  comment: string;
+  max_score: number | null;
+  comment: string | null;
 }
 export interface AIResult {
   attempt_id: string;

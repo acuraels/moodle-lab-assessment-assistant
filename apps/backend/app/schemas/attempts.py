@@ -18,8 +18,9 @@ class AttemptResponse(BaseModel):
 class CriterionResponse(BaseModel):
     name: str
     score: float
-    max_score: float
-    comment: str
+    # Legacy JSON records did not store these fields. Unknown is not zero.
+    max_score: float | None = None
+    comment: str | None = None
 
 
 class AIResultResponse(BaseModel):

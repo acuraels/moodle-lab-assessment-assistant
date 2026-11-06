@@ -110,3 +110,18 @@ Backend, frontend и Moodle должны оставаться запущенны
 - backend: <http://localhost:8000>;
 - frontend: <http://127.0.0.1:5173/>;
 - Moodle: <http://localhost/>.
+
+## Совместимость сохранённых критериев
+
+В ответе `GET /api/attempts/{attempt_id}/ai-result` критерий всегда содержит
+`name`, `score`, `max_score`, `comment`. Если максимум или комментарий не были
+сохранены в старом JSON, схема ответа возвращает `null`. Максимум не выводится
+из общей оценки. Чтение не обновляет PostgreSQL; миграция и повторный seed
+для этого исправления не нужны.
+
+Регрессионные тесты схемы запускаются из `apps/backend` в окружении с
+установленными зависимостями backend; отдельная установка pytest не требуется:
+
+```sh
+python -m unittest discover -s tests -v
+```
