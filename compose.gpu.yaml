@@ -1,0 +1,12 @@
+# Optional overlay for a Docker host with a supported NVIDIA GPU/runtime.
+# Native Windows Ollama is the primary remote deployment; no GPU is required
+# on the Linux backend machine. This file only extends the root Compose stack.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

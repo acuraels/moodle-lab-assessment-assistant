@@ -20,7 +20,7 @@ ALLOWED_ATTEMPT_TYPES = {
 
 
 async def read_upload(file: UploadFile, allowed_types: set[str]) -> bytes:
-    content = await file.read()
+    content = await file.read(settings.max_file_size_bytes + 1)
     if len(content) > settings.max_file_size_bytes:
         raise ValueError("FILE_TOO_LARGE")
     content_type = file.content_type or "application/octet-stream"

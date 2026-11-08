@@ -189,7 +189,7 @@ export function TeacherDashboard() {
           </span>
           <span className="ai-enabled">
             <Icon name="spark" size={15} />
-            {demo ? "Демонстрационный режим" : "Автопроверка пока недоступна"}
+            {demo ? "Демонстрационный режим" : "Предварительная проверка ИИ"}
           </span>
         </div>
         <div className="table-tools">
@@ -493,7 +493,7 @@ export function TeacherDashboard() {
               <br />
               {demo
                 ? "LLM и Moodle пока не подключены."
-                : "ML и публикация оценок пока не подключены."}
+                : "Оценка ИИ предварительная. Публикация оценок в Moodle пока не подключена."}
             </p>
           </div>
         </div>

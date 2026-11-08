@@ -28,7 +28,8 @@ services:
 
   backend:
     build:
-      context: ./apps/backend
+      context: .
+      dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the root .env}
@@ -38,6 +39,12 @@ services:
       LTI_CONSUMER_KEY: ${LTI_CONSUMER_KEY:?Set LTI_CONSUMER_KEY in the root .env}
       LTI_CONSUMER_SECRET: ${LTI_CONSUMER_SECRET:?Set LTI_CONSUMER_SECRET in the root .env}
       MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-20971520}
+      ML_URL: ${ML_URL:-}
+      ML_TOKEN: ${ML_TOKEN:-}
+      ML_TIMEOUT_SECONDS: ${ML_TIMEOUT_SECONDS:-540}
+      ML_MAX_ATTEMPTS: ${ML_MAX_ATTEMPTS:-2}
+      ML_RETRY_DELAY_SECONDS: ${ML_RETRY_DELAY_SECONDS:-10}
+      ML_PROCESSING_DEADLINE_SECONDS: ${ML_PROCESSING_DEADLINE_SECONDS:-1800}
     command:
       - sh
       - -c
@@ -51,12 +58,65 @@ services:
     networks:
       - app
       - database
+      - inference
     healthcheck:
       test: ["CMD", "python", "/app/healthcheck.py"]
       interval: 15s
       timeout: 8s
       retries: 5
       start_period: 40s
+    logging: *logging
+
+  # CPU-only document processing on Linux; OLLAMA_URL may point to Windows
+  # over Tailscale. Starting this profile does not start a local model runtime.
+  ml:
+    profiles: [ml]
+    build:
+      context: .
+      dockerfile: apps/ml/Dockerfile
+    restart: unless-stopped
+    environment:
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      ML_TOKEN: ${ML_TOKEN:-}
+      ML_CONTEXT_TOKENS: ${ML_CONTEXT_TOKENS:-8192}
+      ML_MODEL_TIMEOUT_SECONDS: ${ML_MODEL_TIMEOUT_SECONDS:-180}
+      ML_TOKENIZER_PATH: ${ML_TOKENIZER_PATH:-}
+    mem_limit: 2g
+    volumes:
+      - ml_tokenizer_cache:/opt/ml-tokenizer
+    ports:
+      - "${ML_BIND_ADDRESS:-127.0.0.1}:${ML_PORT:-8001}:8001"
+    networks:
+      - inference
+      - model_access
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+  ollama:
+    profiles: [ollama]
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.40.15}
+    restart: unless-stopped
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_CONTEXT_LENGTH: ${ML_CONTEXT_TOKENS:-8192}
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - inference
+      - model_download
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     logging: *logging
 
   postgres:
@@ -82,8 +142,15 @@ networks:
   app:
   database:
     internal: true
+  inference:
+    internal: true
+  # Outbound access from ML to a remote Ollama host (including Tailscale).
+  model_access:
+  model_download:
 
 volumes:
+  ollama_models:
+  ml_tokenizer_cache:
   postgres_data:
     external: true
     name: ${POSTGRES_VOLUME_NAME:-backend_postgres_data}

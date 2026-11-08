@@ -1,20 +1,22 @@
 from pathlib import PurePath
+from datetime import timedelta
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.config import settings
 from app.errors import api_error
 from app.middleware.session import UserContext, get_current_user, require_student
 from app.models import AISettings, Attempt, AttemptStatus, FilePurpose, StoredFile
 from app.routers.common import attempt_item, get_attempt, get_lab, now, pages
 from app.schemas.attempts import AIResultResponse
 from app.services.files import ALLOWED_ATTEMPT_TYPES, read_upload
-from app.services.worker import process_attempt
+from app.services.ai_snapshot import settings_snapshot
 
 router = APIRouter(prefix="/api", tags=["student-attempts"])
 
@@ -47,13 +49,13 @@ async def list_attempts(
 @router.post("/labs/{lab_id}/attempts", status_code=202)
 async def create_attempt(
     lab_id: str,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user: UserContext = Depends(require_student),
     db: AsyncSession = Depends(get_db),
 ):
     lab = await get_lab(db, lab_id, user)
-    if await db.get(AISettings, lab.id) is None:
+    snapshot = settings_snapshot(lab, await db.get(AISettings, lab.id))
+    if snapshot is None:
         raise api_error(409, "AI_SETTINGS_NOT_CONFIGURED", "AI settings are not configured")
     count = await db.scalar(
         select(func.count()).where(Attempt.lab_id == lab.id, Attempt.student_id == user.sub)
@@ -75,6 +77,9 @@ async def create_attempt(
         submitted_at=now(),
         teacher_submitted=False,
         status=AttemptStatus.PROCESSING,
+        settings_version=snapshot["settings_version"],
+        ai_input_snapshot=snapshot,
+        ai_deadline_at=now() + timedelta(seconds=settings.ml_processing_deadline_seconds),
     )
     db.add(attempt)
     db.add(
@@ -92,7 +97,6 @@ async def create_attempt(
     )
     await db.commit()
     await db.refresh(attempt, attribute_names=["files"])
-    background_tasks.add_task(process_attempt, attempt.id)
     return attempt_item(attempt)
 
 
@@ -138,6 +142,8 @@ async def ai_result(
         criteria=attempt.ai_criteria or [],
         settings_version=attempt.settings_version,
         checked_at=attempt.ai_checked_at,
+        error={"code": attempt.ai_error_code, "message": attempt.ai_error_message}
+        if attempt.ai_error_code and attempt.ai_error_message else None,
     )
     if attempt.status == AttemptStatus.PROCESSING:
         return JSONResponse(status_code=202, content=payload.model_dump(mode="json"))

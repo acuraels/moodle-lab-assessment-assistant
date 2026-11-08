@@ -7,9 +7,11 @@ name = "moodle-lab-assessment-assistant-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+  "assessment-contract==0.1.0",
   "alembic>=1.13,<2",
   "asyncpg>=0.29,<1",
   "fastapi>=0.115,<1",
+  "httpx>=0.27,<1",
   "pydantic-settings>=2.6,<3",
   "PyJWT>=2.9,<3",
   "pypdf>=5,<6",

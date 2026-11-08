@@ -34,11 +34,11 @@ export function AttemptFeedback({
           {attempt.status === "ai_failed" ? (
             <div className="ai-result">
               <p>
-                Автоматическая проверка пока недоступна. Работа сохранена, но
-                обработать её с помощью ИИ не удалось.
+                {result?.error?.message ||
+                  "Автоматическая проверка не завершилась. Работа сохранена, но обработать её с помощью ИИ не удалось."}
               </p>
               <p>
-                Это техническое ограничение, а не замечание к вашей работе.
+                Этот статус не является оценкой качества работы.
                 Отправка преподавателю для этой попытки недоступна.
               </p>
             </div>
@@ -70,7 +70,8 @@ export function AttemptFeedback({
               </div>
               {!result?.criteria.length && (
                 <p className="muted small">
-                  Критерии и рекомендации сервером не предоставлены.
+                  Баллы по отдельным критериям не выставлены. Доступные
+                  замечания приведены в заключении.
                 </p>
               )}
               {result?.criteria.map((criterion, index) => (
@@ -90,7 +91,9 @@ export function AttemptFeedback({
                         ` / ${criterion.max_score}`}
                     </p>
                     {typeof criterion.comment === "string" && (
-                      <p>{criterion.comment}</p>
+                      <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                        {criterion.comment}
+                      </p>
                     )}
                   </div>
                 </div>

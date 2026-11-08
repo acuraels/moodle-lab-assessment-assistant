@@ -34,7 +34,11 @@ export function ServerCriteria({ result }: { result?: AIResult }) {
                 aria-label={row.name || `Критерий ${index + 1}`}
               />
             )}
-          {typeof row.comment === "string" && <p>{row.comment}</p>}
+          {typeof row.comment === "string" && (
+            <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+              {row.comment}
+            </p>
+          )}
         </div>
       ))}
     </section>

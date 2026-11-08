@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+from contextlib import suppress
+import asyncio
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,12 +10,19 @@ from fastapi.responses import JSONResponse
 from app.database import engine
 from app.middleware.request_context import RequestContextMiddleware
 from app.routers import api, lti
+from app.services.worker import consume_attempts
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    yield
-    await engine.dispose()
+    worker = asyncio.create_task(consume_attempts(), name="ml-attempt-consumer")
+    try:
+        yield
+    finally:
+        worker.cancel()
+        with suppress(asyncio.CancelledError):
+            await worker
+        await engine.dispose()
 
 
 app = FastAPI(title="Moodle Lab Assessment Assistant API", lifespan=lifespan)

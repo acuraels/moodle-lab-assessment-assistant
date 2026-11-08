@@ -6,14 +6,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-COPY app ./app
-COPY alembic.ini ./
-COPY alembic ./alembic
-COPY healthcheck.py ./healthcheck.py
+COPY packages/assessment-contract /tmp/assessment-contract
+COPY apps/backend/pyproject.toml ./
+COPY apps/backend/app ./app
+COPY apps/backend/alembic.ini ./
+COPY apps/backend/alembic ./alembic
+COPY apps/backend/healthcheck.py ./healthcheck.py
 
-RUN pip install --upgrade pip \
-    && pip install .
+RUN pip install /tmp/assessment-contract . \
+    && rm -rf /tmp/assessment-contract
 
 RUN addgroup --system app \
     && adduser --system --ingroup app app \

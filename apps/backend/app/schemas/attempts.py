@@ -23,6 +23,11 @@ class CriterionResponse(BaseModel):
     comment: str | None = None
 
 
+class AIErrorResponse(BaseModel):
+    code: str
+    message: str
+
+
 class AIResultResponse(BaseModel):
     attempt_id: str
     status: str
@@ -32,3 +37,4 @@ class AIResultResponse(BaseModel):
     criteria: list[CriterionResponse] = Field(default_factory=list)
     settings_version: int | None = None
     checked_at: datetime | None = None
+    error: AIErrorResponse | None = None

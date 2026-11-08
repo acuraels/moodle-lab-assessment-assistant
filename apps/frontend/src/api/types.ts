@@ -65,6 +65,7 @@ export interface AIResult {
   criteria: Criterion[];
   settings_version: number | null;
   checked_at: string | null;
+  error?: { code: string; message: string } | null;
 }
 export interface Student {
   id: string;

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools==75.6.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moodle-lab-assessment-ml"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "assessment-contract==0.1.0",
+  "fastapi==0.135.2",
+  "starlette==1.0.0",
+  "pydantic==2.11.9",
+  "pydantic-settings==2.13.1",
+  "httpx==0.28.1",
+  "tokenizers==0.22.2",
+  "pypdf==5.0.1",
+  "python-docx==1.2.0",
+  "lxml==6.1.3",
+  "python-multipart==0.0.22",
+  "uvicorn==0.42.0",
+]
+
+[project.scripts]
+ml-evaluate = "ml_service.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ml_service*"]
